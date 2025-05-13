@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { Box, Button, Typography, LinearProgress } from "@mui/material";
+import {
+  Box,
+  Button,
+  Typography,
+  LinearProgress,
+  TextField,
+} from "@mui/material";
 import FileUploadIcon from "@mui/icons-material/FileUpload";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -18,7 +24,7 @@ const HomeScreen = ({ results, onProcessComplete }: HomeScreenProps) => {
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
   const [downloadLink, setDownloadLink] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>("");
 
   useEffect(() => {
     if (downloadLink) {
@@ -32,6 +38,34 @@ const HomeScreen = ({ results, onProcessComplete }: HomeScreenProps) => {
       setDownloadLink(null);
     }
   }, [downloadLink]);
+
+  const handleDatePreferenceClick = async () => {
+    if (!selectedDate || selectedDate.trim() === "") {
+      alert("Please enter a date.");
+      return;
+    }
+
+    const dateFormatRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+    if (!dateFormatRegex.test(selectedDate)) {
+      alert("Invalid format. Please enter the date in yyyy-mm-dd format.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.post("http://localhost:8000/set-date", {
+        date: selectedDate,
+      });
+      console.log(response.data);
+      alert("Date sent successfully!");
+    } catch (error) {
+      console.error("Failed to send date:", error);
+      alert("Failed to send date.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFolderChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -82,7 +116,10 @@ const HomeScreen = ({ results, onProcessComplete }: HomeScreenProps) => {
       console.log("Folder upload response:", response);
       const url = window.URL.createObjectURL(new Blob([response.data]));
       setDownloadLink(url);
-      onProcessComplete("Detailed Customer Data");
+      onProcessComplete("-- Detailed Customer Data");
+      const dateResponse = await axios.post("http://localhost:8000/set-date", {
+        date: "2222-02-22",
+      });
     } catch (error) {
       console.error("Folder upload failed:", error);
       alert("Folder file upload failed");
@@ -115,29 +152,14 @@ const HomeScreen = ({ results, onProcessComplete }: HomeScreenProps) => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       setDownloadLink(url);
       onProcessComplete("Detailed Customer Data");
+      const dateResponse = await axios.post("http://localhost:8000/set-date", {
+        date: "2222-02-22",
+      });
     } catch (error) {
       console.error("Excel upload failed:", error);
       alert("Excel file upload failed");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDatePreferenceClick = async () => {
-    if (!selectedDate) {
-      alert("Please select a date first.");
-      return;
-    }
-
-    try {
-      const response = await axios.post("http://localhost:8000/set-date", {
-        date: selectedDate.toISOString(),
-      });
-      alert("Date sent successfully!");
-      console.log(response.data);
-    } catch (error) {
-      console.error("Failed to send date:", error);
-      alert("Failed to send date.");
     }
   };
 
@@ -173,6 +195,51 @@ const HomeScreen = ({ results, onProcessComplete }: HomeScreenProps) => {
           alignItems: "center",
         }}
       >
+        <Box
+          sx={{
+            paddingBottom: "20px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <TextField
+            label="Enter Cutoff Date"
+            placeholder="yyyy-mm-dd"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            variant="outlined"
+            sx={{
+              mb: 2,
+              width: "300px",
+              "& .MuiOutlinedInput-root": {
+                backgroundColor: "#1e1e2f",
+                color: "white",
+                "& fieldset": { borderColor: "#667eea" },
+                "&:hover fieldset": { borderColor: "#764ba2" },
+                "&.Mui-focused fieldset": { borderColor: "#764ba2" },
+              },
+              "& .MuiInputLabel-root": { color: "#667eea" },
+            }}
+          />
+
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={handleDatePreferenceClick}
+            disabled={!selectedDate || loading}
+            sx={{
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              color: "white",
+              padding: "10px 20px",
+              fontSize: "16px",
+              marginBottom: "20px",
+            }}
+          >
+            {loading ? "Sending Date..." : "Set Date Preference"}
+          </Button>
+        </Box>
+
         <input
           id="folderInput"
           type="file"
@@ -193,119 +260,147 @@ const HomeScreen = ({ results, onProcessComplete }: HomeScreenProps) => {
           accept=".xls,.xlsx"
           onChange={handleExcelChange}
         />
-        <Button disableElevation disableRipple onClick={handleFolderInputClick}>
-          <Box
-            sx={{
-              display: "flex",
-              height: "300px",
-              width: "300px",
-              borderRadius: "15px",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              margin: "5px",
-              boxShadow: "0px 5px 15px rgba(0,0,0,0.3)",
-              transition: "0.3s",
-              "&:hover": { transform: "scale(1.05)" },
-            }}
-          >
-            <Typography
-              style={{
-                fontFamily: "Arial",
-                fontSize: "20px",
-                fontWeight: "bold",
-                color: "white",
-              }}
-            >
-              Upload Raw Data Folder
-            </Typography>
-            <FileUploadIcon style={{ fontSize: "50px", color: "white" }} />
-          </Box>
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleFolderUpload}
-          disabled={selectedFolderFiles.length === 0 || loading}
-          sx={{
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            color: "white",
-            padding: "10px 20px",
-            fontSize: "16px",
-          }}
-        >
-          {loading ? (
-            <Typography sx={{ color: "white", fontWeight: "bold" }}>
-              Processing Folder...
-            </Typography>
-          ) : (
-            "Process & Download Folder Files"
-          )}
-        </Button>
 
+        {/* Buttons side by side with identical styling */}
         <Box
           sx={{
             display: "flex",
-            flexDirection: "column",
+            gap: 2,
             alignItems: "center",
+            marginY: "127px",
           }}
         >
-          <Button
-            disableElevation
-            disableRipple
-            onClick={handleExcelInputClick}
-            style={{ paddingBottom: "20px" }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                height: "300px",
-                width: "300px",
-                borderRadius: "15px",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                margin: "20px",
-                boxShadow: "0px 5px 15px rgba(0,0,0,0.3)",
-                transition: "0.3s",
-                "&:hover": { transform: "scale(1.05)" },
-              }}
-            >
-              <Typography
-                style={{
-                  fontFamily: "Arial",
-                  fontSize: "20px",
-                  color: "white",
-                  fontWeight: "bold",
-                }}
-              >
-                Upload test_db.xlsx
-              </Typography>
-              <FileUploadIcon style={{ fontSize: "50px", color: "white" }} />
-            </Box>
-          </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleExcelUpload}
-            disabled={!selectedExcelFile || loading}
+          {/* Folder upload & process */}
+          <Box
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              color: "white",
-              padding: "10px 20px",
-              fontSize: "16px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
             }}
           >
-            {loading ? (
-              <Typography sx={{ color: "white", fontWeight: "bold" }}>
-                Processing Excel...
-              </Typography>
-            ) : (
-              "Process & Download Excel File"
-            )}
-          </Button>
+            <Button
+              disableElevation
+              disableRipple
+              onClick={handleFolderInputClick}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  height: "300px",
+                  width: "300px",
+                  borderRadius: "15px",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background:
+                    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  margin: "5px",
+                  boxShadow: "0px 5px 15px rgba(0,0,0,0.3)",
+                  transition: "0.3s",
+                  "&:hover": { transform: "scale(1.05)" },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontFamily: "Arial",
+                    fontSize: "20px",
+                    fontWeight: "bold",
+                    color: "white",
+                  }}
+                >
+                  Upload Raw Data Folder
+                </Typography>
+                <FileUploadIcon sx={{ fontSize: 50, color: "white" }} />
+              </Box>
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleFolderUpload}
+              disabled={selectedFolderFiles.length === 0 || loading}
+              sx={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                color: "white",
+                padding: "10px 20px",
+                fontSize: "16px",
+                marginX: "50px",
+              }}
+            >
+              {loading ? (
+                <Typography sx={{ color: "white", fontWeight: "bold" }}>
+                  Processing Folder...
+                </Typography>
+              ) : (
+                "Process & Download Folder Files"
+              )}
+            </Button>
+          </Box>
+
+          {/* Excel upload & process */}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <Button
+              disableElevation
+              disableRipple
+              onClick={handleExcelInputClick}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  height: "300px",
+                  width: "300px",
+                  borderRadius: "15px",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background:
+                    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  margin: "5px",
+                  boxShadow: "0px 5px 15px rgba(0,0,0,0.3)",
+                  transition: "0.3s",
+                  "&:hover": { transform: "scale(1.05)" },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontFamily: "Arial",
+                    fontSize: "20px",
+                    fontWeight: "bold",
+                    color: "white",
+                  }}
+                >
+                  Upload Hazır_DB.xlsx
+                </Typography>
+                <FileUploadIcon sx={{ fontSize: 50, color: "white" }} />
+              </Box>
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleExcelUpload}
+              disabled={!selectedExcelFile || loading}
+              sx={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                color: "white",
+                padding: "10px 20px",
+                fontSize: "16px",
+                marginX: "50px",
+              }}
+            >
+              {loading ? (
+                <Typography sx={{ color: "white", fontWeight: "bold" }}>
+                  Processing Excel...
+                </Typography>
+              ) : (
+                "Process & Download Excel File"
+              )}
+            </Button>
+          </Box>
         </Box>
       </Box>
 

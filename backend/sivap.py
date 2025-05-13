@@ -24,6 +24,7 @@ def process_excel_files(
     aktiviteler_dir: str,
     giriş_çıkış_dir: str,
     output_dir: str,
+    cutoff_date: str,
 ):
     FIXED_DIR = "fixedFiles"
 
@@ -60,7 +61,7 @@ def process_excel_files(
         cleaned_data["Doğum Tarihi_x"], errors="coerce"
     )
 
-    # Sözleşme Yaşı bulma işi
+    # Sözleşme Yaşı bulma
     cleaned_data.loc[:, "Sözleşme Yaşı"] = cleaned_data.apply(
         lambda row: (row["Satış Tarihi"] - row["Doğum Tarihi_x"]).days // 365
         if pd.notnull(row["Satış Tarihi"]) and pd.notnull(row["Doğum Tarihi_x"])
@@ -543,7 +544,7 @@ def process_excel_files(
     latest_month = latest_row.dropna().index[-1]
     latest_index = latest_row[latest_month]
 
-    print(f"📌 Latest CPI Index: {latest_index:.2f} ({latest_month} {latest_year})")
+    print(f"Latest CPI Index: {latest_index:.2f} ({latest_month} {latest_year})")
 
     # Your contract data
     # Assuming contracts_df already exists with columns:
@@ -576,7 +577,7 @@ def process_excel_files(
             adjusted = row["Tutar ( TL )"] * (latest_index / start_index)
             return adjusted
         except Exception as e:
-            print(f"❌ Error on row: {e}")
+            print(f"Error on row: {e}")
             return row["Tutar ( TL )"]
 
     # Apply to all contracts
@@ -781,7 +782,7 @@ def process_excel_files(
     print(testt_db.columns.tolist())
 
     # Export test_db (original) if you want
-    output_path = os.path.join(output_dir, "TESTE_HAZIRLIK_ONCESI_SON.xlsx")
+    output_path = os.path.join(output_dir, "HAZIR_DB.xlsx")
     testt_db.to_excel(output_path, index=False)
 
     # LOGISTIC REGRESSION - sine eren
@@ -848,12 +849,6 @@ def process_excel_files(
         handle_unknown="ignore",
     )
 
-    encoder = OneHotEncoder(
-        categories=categories,
-        drop="first",
-        sparse_output=False,  # Correct for scikit-learn >= 1.2
-        handle_unknown="ignore",
-    )
     print("\nSelected Base Categories (Base Customer Profile):")
     for feature, base_value in base_profile.items():
         print(f"{feature}: {base_value}")
@@ -915,15 +910,8 @@ def process_excel_files(
 
     # Correct coefficient extraction
     coefficients_df = pd.DataFrame(
-        log_model.coef_[0], index=encoded_columns, columns=["Coefficients"]
+        log_model.coef_[0], index=encoded_columns, columns=["Feature", "Coefficients"]
     )
-
-    # Optional: View top positive and negative coefficients
-    print("\nTop Positive Influences on Renewal:")
-    print(coefficients_df.sort_values(by="Coefficients", ascending=False).head(10))
-
-    print("\nTop Negative Influences on Renewal:")
-    print(coefficients_df.sort_values(by="Coefficients", ascending=True).head(10))
 
     # Opsiyonel: Temel müşteri için yenileme olasılığı
     p_baseline = 1 / (1 + np.exp(-log_model.intercept_[0]))
@@ -947,6 +935,14 @@ def process_excel_files(
     customer_file_path = os.path.join(output_dir, "test_db.xlsx")
     customer_df = pd.read_excel(customer_file_path)
 
+    customer_df = pd.read_excel(customer_file_path)
+    cutoff = pd.to_datetime(cutoff_date)
+
+    pending = customer_df[
+        customer_df["Yenileme Durumu"].isna()
+        & (pd.to_datetime(customer_df["Ek Süreli Bitiş T."], errors="coerce") <= cutoff)
+    ].copy()
+
     # Rename the column for coefficients (keep Feature as column, do NOT set it as index)
     coefficients_df.columns = ["Feature", "Coefficient"]
 
@@ -965,9 +961,10 @@ def process_excel_files(
         "Renewal Percentage_Range",
         "Sözleşme Yaşı_Range",
     ]
+    additonal_columns = ["Ek Süreli Bitiş T."]
 
     # Create a copy of customer data for processing
-    customer_scores = customer_df[["Sözleşme No"] + selected_columns].copy()
+    customer_scores = pending[["Sözleşme No"] + selected_columns].copy()
 
     # Initialize score with intercept
     intercept = log_model.intercept_[0]

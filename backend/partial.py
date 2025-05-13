@@ -18,9 +18,11 @@ from churners import find_churners
 def partialRun(
     test_db_path: str,
     output_dir: str,
+    cutoff_date: str,
 ):
     FIXED_DIR = "fixedFiles"
 
+    print("cutoff", cutoff_date)
     print("test_db_path:", test_db_path)
     testt_db = pd.read_excel(test_db_path)
     print(f"Number of rows in the corrected data: {testt_db.shape[0]}")
@@ -163,6 +165,17 @@ def partialRun(
     customer_file_path = os.path.join(output_dir, "test_db.xlsx")
     customer_df = pd.read_excel(customer_file_path)
 
+    customer_df = pd.read_excel(customer_file_path)
+    cutoff = pd.to_datetime(cutoff_date)
+
+    pending = customer_df[
+        customer_df["Yenileme Durumu"].isna()
+        & (pd.to_datetime(customer_df["Ek Süreli Bitiş T."], errors="coerce") <= cutoff)
+    ].copy()
+
+    # Rename the column for coefficients (keep Feature as column, do NOT set it as index)
+    coefficients_df.columns = ["Feature", "Coefficient"]
+
     # Değerlendirilecek kategorik kolonlar
     selected_cols = [
         "Müşteri Kodu",
@@ -180,7 +193,7 @@ def partialRun(
     ]
 
     # Skor tablosu
-    customer_scores = customer_df[["Sözleşme No"] + selected_cols].copy()
+    customer_scores = pending[["Sözleşme No"] + selected_cols].copy()
     customer_scores["Score"] = log_model.intercept_[0]
 
     # Skor hesapla
@@ -203,27 +216,3 @@ def partialRun(
         out_path, index=False
     )
     print(f"Results saved to '{out_path}'.")
-
-    find_churners(
-        customer_file_path="processed/test_db.xlsx",
-        file_recent="fixedFiles/Effect_uyelik_sozlesmeleri_latest.xls",
-        output_dir="fixedFiles",
-        coefficients_file_path=coeff_path,
-        intercept=log_model.intercept_[0],
-        categorical_columns=[
-            "Üyelik Adı",
-            "Cinsiyet",
-            "Medeni Durumu",
-            "Üyelik Tipi",
-            "Aday Türü_x",
-            "Assigned Interval",
-            "Sözleşme Yaşı_Range",
-            "Aranma Sayısı_Range",
-            "Overall Usage Percentage (%)_Range",
-            "Last 30 Days Utilization (%)_Range",
-            "Average_Visit_Duration_Range",
-            "Unit Price (TL per day)_Range",
-            "Number of Past Renewals_Range",
-            "Renewal Percentage_Range",
-        ],
-    )

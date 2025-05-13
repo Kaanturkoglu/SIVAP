@@ -22,6 +22,9 @@ const Sider = ({ results, onResultClick }: SiderProps) => {
   const handleBaseCustomerClick = () => {
     navigate("/base-customer");
   };
+  const handleCallListClick = () => {
+    navigate("/call-list");
+  };
 
   return (
     <Box
@@ -84,7 +87,7 @@ const Sider = ({ results, onResultClick }: SiderProps) => {
           borderRadius: "0px",
           width: "340px",
         }}
-        onClick={() => {}}
+        onClick={() => handleCallListClick()}
       >
         <Call style={{ color: "#1e1e2f", fontSize: "30px" }} />
         <Typography
@@ -135,9 +138,7 @@ const Sider = ({ results, onResultClick }: SiderProps) => {
           borderBottom: "0.3px solid #1e1e2f",
           borderRadius: "0px",
           width: "340px",
-          
         }}
-        
         onClick={() => handleChurnersProfileClick()}
       >
         <GroupRemoveIcon style={{ color: "#1e1e2f", fontSize: "30px" }} />

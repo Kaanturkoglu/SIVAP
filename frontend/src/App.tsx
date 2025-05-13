@@ -10,6 +10,7 @@ import DataShowScreen from "./screens/HomeScreen/DataShowScreen.tsx";
 import Sider from "./components/Sider";
 import ChurnersProfileScreen from "./screens/HomeScreen/ChurnersProfileScreen.tsx";
 import BaseCustomer from "./screens/HomeScreen/BaseCustomer.tsx";
+import CallListScreen from "./screens/HomeScreen/CallListScreen.tsx";
 
 // Wrapper component that uses the useNavigate hook
 
@@ -43,6 +44,7 @@ const AppRoutes = ({
       }
     ></Route>
     <Route path="/base-customer" element={<BaseCustomer results={results} />} />
+    <Route path="/call-list" element={<CallListScreen results={results} />} />
   </Routes>
 );
 

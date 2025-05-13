@@ -1,11 +1,15 @@
+import datetime
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse
 import os
 import zipfile
 from loguru import logger
+from pydantic import BaseModel
 from sivap import process_excel_files
 from fastapi.middleware.cors import CORSMiddleware
 from partial import partialRun
+import re
+
 
 app = FastAPI()
 
@@ -23,6 +27,31 @@ AKTİVİTELER_DIR = "uploads/aktivite_raporlari"
 GİRİŞ_ÇIKIŞ_DIR = "uploads/giris_cikis_verileri"
 PROCESSED_DIR = "processed"
 FIXED_DIR = "fixedFiles"
+
+CUTOFF_DATE = "2222-02-22"
+
+
+class DateRequest(BaseModel):
+    date: str
+
+
+@app.post("/set-date")
+async def set_date(request: DateRequest):
+    global CUTOFF_DATE
+
+    # Regex to validate the format yyyy-mm-dd
+    date_format_regex = r"^\d{4}-\d{2}-\d{2}$"
+
+    if not re.match(date_format_regex, request.date):
+        raise HTTPException(
+            status_code=400, detail="Invalid date format. Expected yyyy-mm-dd"
+        )
+
+    # Update the global cutoff date
+    CUTOFF_DATE = request.date
+    print(f"Cutoff date set to: {CUTOFF_DATE}")
+
+    return {"message": "Date set successfully", "date": CUTOFF_DATE}
 
 
 @app.post("/upload")
@@ -76,6 +105,7 @@ async def upload_files(files: list[UploadFile] = File(...)):
             AKTİVİTELER_DIR,
             GİRİŞ_ÇIKIŞ_DIR,
             PROCESSED_DIR,
+            CUTOFF_DATE,
         )
 
         zip_path = os.path.join(PROCESSED_DIR, "processed_files.zip")
@@ -136,7 +166,7 @@ async def upload_excel(file: UploadFile = File(...)):
         else:
             print(f"File saved successfully at: {file_path}")
 
-        partialRun(file_path, PROCESSED_DIR)
+        partialRun(file_path, PROCESSED_DIR, CUTOFF_DATE)
         zip_path = os.path.join(PROCESSED_DIR, "processed_files.zip")
         print(f"Zip path: {zip_path}")
 
